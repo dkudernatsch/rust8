@@ -83,7 +83,20 @@ impl Mem{
 }
 
 
-#[derive(Debug)]
-enum Instruction {
-   
+#[derive(Debug)] 
+pub struct Instruction<'a> {
+   pub bytes: &'a[u8]
 }
+
+impl<'a> Instruction<'a> {
+     pub fn at(&self, pos: usize) -> u8 {
+         if pos % 2 == 0 {
+             println!("Acess: {:?}", pos / 2);
+             return self.bytes[pos / 2] & 0x0F;
+         }else{
+             println!("Acess: {:?}", (pos / 2));
+             return self.bytes[(pos / 2)] >> 4; 
+         }
+     }
+}
+

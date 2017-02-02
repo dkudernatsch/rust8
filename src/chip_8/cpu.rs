@@ -3,30 +3,104 @@ use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::fmt::Write;
 use std::fmt;
+use std::path::PathBuf;
+use std::path::Path;
+use std::fs::File;
+use std::io::Read;
+use chip_8::io::Display;
+use chip_8::io::Keyboard;
 
 #[derive(Debug)]
 pub struct Cpu {
-    register: [u8; 16],
+    
+    pub mem: Mem,
+    pub display: Display,
+    pub keyboard: Keyboard,
 
     pub sound_timer: u8,
     pub delay_timer: u8,
 
     pub program_counter: u16,
 
+    reg_i: u16,
+
     pub stack_pointer: u8,
     stack: [u8; 16],
+    register: [u8; 16]
 }
 
 impl Cpu {
     pub fn new() -> Cpu{
         Cpu{
+            mem: Mem::new(),
+            display: Display::new(),
+            keyboard: Keyboard::new(),
             register: [0; 16],
             sound_timer: 0,
             delay_timer: 0,
+            reg_i: 0,
             program_counter: 0,
             stack_pointer: 0,
             stack: [0; 16]
         }
+    }
+
+    pub fn load_rom<'a>(&mut self, name: &String, rom_path: &Path) -> Result<(), &'a str>{
+        let file: Result< PathBuf, &str> = match rom_path.read_dir(){
+            Ok(itr) => itr
+                        .filter_map(
+                            |file_res| match file_res {
+                                Ok(file) => Some(file),
+                                Err(_) => None})
+                        .find(
+                            |file| file.file_name().into_string().unwrap_or("".to_string()) == *name
+                            )
+                        .map(|file| file.path())
+                        .ok_or("Could not find file"),
+            Err(_) => Err("Could not read directory")
+        };
+        let mut buf:Vec<u8> = Vec::new();
+        
+        match file {
+            Ok(path) =>{
+                let mut file = File::open(path).unwrap();
+                match file.read_to_end(&mut buf){
+                    Ok(_) => self.mem.load(&buf, 0x200),
+                    Err(_) => Err("Could not read file")
+                }
+            },
+            Err(x) => Err(x),
+        }
+    }
+
+    pub fn init<'a>(&mut self) -> Result<(), &'a str>{
+        // load characters 0-F into memory starting at 0x100 end 0x140
+        try!(self.load_characters());
+        self.program_counter = 0x200;
+        Ok(())
+    }
+
+    fn load_characters<'a>(&mut self) -> Result<(),&'a str>{
+        let c = 0x100;
+        let buf = &vec![
+            0xF0, 0x90, 0x90, 0x90, 0xF0,
+            0x20, 0x60, 0x20, 0x20, 0x70,
+            0xF0, 0x10, 0xF0, 0x80, 0xF0,
+            0xF0, 0x10, 0xF0, 0x10, 0xF0,
+            0x90, 0x90, 0xF0, 0x10, 0x10,
+            0xF0, 0x80 ,0xF0 ,0x10 ,0xF0,
+            0xF0, 0x80, 0xF0, 0x90, 0xF0,
+            0xF0, 0x10, 0x20, 0x40, 0x40,
+            0xF0, 0x90, 0xF0, 0x90, 0xF0,
+            0xF0, 0x90, 0xF0, 0x10, 0xF0,
+            0xF0, 0x90, 0xF0, 0x90, 0x90,
+            0xE0, 0x90, 0xE0, 0x90, 0xE0,
+            0xF0, 0x80, 0x80, 0x80, 0xF0,
+            0xE0, 0x90, 0x90, 0x90, 0xE0,
+            0xF0, 0x80, 0xF0, 0x80, 0xF0,
+            0xF0, 0x80, 0xF0, 0x80, 0x80
+        ];
+        self.mem.load(buf, c)
     }
 }
 
@@ -82,21 +156,4 @@ impl Mem{
     
 }
 
-
-#[derive(Debug)] 
-pub struct Instruction<'a> {
-   pub bytes: &'a[u8]
-}
-
-impl<'a> Instruction<'a> {
-     pub fn at(&self, pos: usize) -> u8 {
-         if pos % 2 == 0 {
-             println!("Acess: {:?}", pos / 2);
-             return self.bytes[pos / 2] & 0x0F;
-         }else{
-             println!("Acess: {:?}", (pos / 2));
-             return self.bytes[(pos / 2)] >> 4; 
-         }
-     }
-}
 

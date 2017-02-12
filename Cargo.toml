@@ -4,3 +4,6 @@ version = "0.1.0"
 authors = ["dkudernatsch <d.kudernatsch@outlook.com>"]
 
 [dependencies]
+bit-vec = "0.4.3"
+conrod = "*"
+piston_window = "*"
